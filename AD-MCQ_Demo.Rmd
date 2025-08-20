@@ -1,11 +1,13 @@
 ---
 title: "Answer-Dependent Multiple-Choice Question Demo Data Set"
-author: "Harnejan Atwal and Kenjiro Quides"
-date: "`r Sys.Date()`"
+authors: "Harnejan Atawal, Brendan Luo, and Kenjiro Quides"
+date: " "
 output:
   word_document: default
   html_document: default
+  pdf_document: default
 ---
+
 # This file will walk through a demonstration dataset that is formatted in a common scantron output
 
 ## The following packages will be used throughout this demonstration
@@ -16,6 +18,7 @@ library(data.table)
 library(ggplot2)
 library(ggpubr)
 library(rstatix)
+library(multcompView)
 ```
 
 ## 0) Each line below will become a column of data that is commonly found in a scantron output
@@ -23,16 +26,36 @@ library(rstatix)
 # Key column may be automatically or manually added. This is dependent on the equipment and/or software used to read a multiple choice exam.
 # FS indicates a fundamental statement associated with a question. This can be replaced with any question category. This will likely need to be manually added to a scantron output via spreadsheet software (e.g., Microsoft Excel) or within R. 
   # Note: This workflow is only designed for one question category column.
-SID <- c("12345", "23456", "34567", "45678", "56789","67890", "Key", "FS") 
-Q1 <- c("A", "A", "C", "A", "A", "B", "A", "1")
-Q2 <- c("A", "A", "B", "C", "C", "C", "A", "1")
-Q3 <- c("B", "A", "B", "B", "D", "B", "B", "2")
-Q4 <- c("C", "B", "C", "C", "D", "A", "C", "2")
-Q5 <- c("B", "A", "B", "A", "B", "B", "B", "3")
-Q6 <- c("D", "B", "C", "D", "D", "C", "D", "3")
-Q7 <- c("B", "C", "D", "A", "B", "A", "A", "2")
-Q8 <- c("A", "D", "C", "A", "C", "A", "C", "1")
-Q9 <- c("A", "B", "A", "D", "B", "A", "B", "3")
+SID <- c("123", "234", "345", "456", "567","678","789", "890", "901", "011",
+         "111", "222", "333", "444", "555","666","777", "888", "999", "000",
+         "Key", "FS", "QType") 
+Q1 <- c("A", "A", "A", "A", "A", "B", "A", "A", "C", "A", 
+        "A", "A", "A", "A", "A", "C", "C", "A", "A", "B",
+        "A", "1", "MC")
+Q2 <- c("A", "A", "A", "C", "C", "C", "A", "A", "B", "C",
+        "A", "A", "A", "B", "C", "C", "C", "A", "A", "D",
+        "A", "1", "MC")
+Q3 <- c("B", "A", "C", "B", "D", "C", "C", "C", "C", "C", 
+        "D", "A", "C", "A", "D", "C", "D", "C", "C", "C",
+        "B", "2", "MC")
+Q4 <- c("A", "B", "D", "C", "D", "A", "B", "A", "B", "B",
+        "A", "B", "C", "C", "D", "A", "B", "A", "B", "B",
+        "C", "2", "MC")
+Q5 <- c("B", "A", "B", "A", "B", "B", "B", "A", "B", "A", 
+        "B", "B", "B", "A", "B", "A", "B", "B", "D", "C", 
+        "B", "3", "MC")
+Q6 <- c("D", "B", "C", "D", "D", "C", "B", "C", "D", "A", 
+        "B", "A", "B", "C", "D", "D", "C", "A", "B", "C", 
+        "D", "3", "MC")
+Q7 <- c("B", "C", "D", "A", "B", "A", "B", "C", "D", "A", 
+        "B", "A", "D", "B", "C", "D", "C", "C", "A", "C",
+        "A", "2", "AD")
+Q8 <- c("A", "B", "C", "C", "C", "A", "A", "B", "C", "C",
+        "C", "A", "A", "B", "C", "C", "B", "C", "C", "B",
+        "C", "1", "AD")
+Q9 <- c("C", "B", "B", "B", "B", "C", "C", "B", "B", "B",
+        "B", "C", "C", "B", "B", "B", "B", "C", "B", "C",
+        "B", "3", "AD")
 
 #This will create the working dataset for the rest of the demo
 df <- data.frame(SID, Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9) 
@@ -42,12 +65,14 @@ df
 ### We are assuming that student demographic data will be requested from an institution independent of the assessment. Thus, we will create a second dataframe to append to student performance data. 
 ```{r message=FALSE, warning=FALSE}
 #This will create a new vector of mock demographic data
-Demo <- c("coffee", "tea", "soda", "soda", "coffee", "tea", " ", " ")
+Demo <- c("coffee", "soda", "tea", "coffee", "tea", "tea", "coffee", "soda", "tea", "tea", 
+          "tea", "coffee", "coffee", "soda", "tea", "soda", "soda", "soda", "coffee", "soda",
+          "", "", "")
 
 #This will associate demographic data with a student ID based on the information above
 df_Demo <- data.frame(SID, Demo) %>%
-  #We only need data related to student ID for this new dataset so we can ignore "Key" and FS" data
-  slice_head(n = nrow(df)-2)
+  #We only need data related to student ID for this new dataset so we can ignore "Key", FS", and "QType" data
+  slice_head(n = nrow(df)-3)
 df_Demo
 ```
 
@@ -73,8 +98,12 @@ df_qa<-
                                Q7=="C" & Q8=="B" ~ 1),
                 P9 = case_when(Q8=="A" & Q9=="C" |
                                Q8=="B" & Q9=="A" |
-                               Q8=="C" & Q9=="B" ~ 1))
+                               Q8=="C" & Q9=="B" ~ 1.5))
+df_qa <- df_qa %>%
+  #NAs are replaced with 0 for summary statistics calculations
+  replace(is.na(.), 0)
 df_qa
+
 ```
 
 ## 2) Now that point values have been assigned to each question, the dataframe can be cleaned up by removing the answer choices. We will then calculate total scores.
@@ -91,7 +120,7 @@ Pstart<- ncol(df)+1
 Pend<- Qend*2-1-(0)
 
 # The FS cells were originally associated with the Question columns, but we now need them in the Point columns. This will copy FS to the Points columns (2:1+nQ; 2+nQ:2+2nQ)
-df_qa[nrow(df_qa), Pstart:Pend] = as.list(as.numeric(df[nrow(df_qa), 2:Qend])) 
+df_qa[nrow(df_qa)-1, Pstart:Pend] = as.list(as.numeric(df[nrow(df_qa)-1, 2:Qend])) 
 
 #We can now remove the Question columns and store in a new dataframe.
 df_a<-
@@ -119,8 +148,8 @@ df_t$FS <- sapply(df_t$FS, as.numeric)
 #The next steps require a formulat to calcuate proportion of different answer choices
 
 #The first step calculates the total number of students.
-#It is equal to last column to count, -2 to remove Key and FS columns
-totalN <- ncol(df_t)-2
+#It is equal to last column to count, -2 to remove Key, FS, and QType columns
+totalN <- ncol(df_t)-3
 
 #This is the function to calculate proportion of answer choices that match the Key column
   #indicated by +1
@@ -158,7 +187,6 @@ colnames(df_at) <- df_a$SID
 
 #This is just a count to remove the key row. -1 for Key
 df_at<- slice_head(df_at, n=nrow(df_at)-1) 
-colnames(df_at) <- df_a$SID
 
 #ignores SID as first column
 rownames(df_at) <- colnames(df_a[2:(ncol(df_a)-1)]) 
@@ -171,16 +199,16 @@ df_at <- df_at %>%
   rowwise() %>%
   #Cells were originally left blank if no points were earned. This will replace blanks with 0
   mutate(across(where(is.numeric), ~replace(., is.na(.), 0))) %>%
-  # -3 removes Key, FS, and KEYQ columns
-  mutate(mean = mean(c_across(1:(ncol(df_at)-3)))) %>% 
+  # -3 removes Key, FS, QType, and KEYQ columns
+  mutate(mean = mean(c_across(1:(ncol(df_at)-4)))) %>% 
   # -4 removes the new "mean" column as well
-  mutate(sum = sum(c_across(1:(ncol(df_at)-4)))) 
+  mutate(sum = sum(c_across(1:(ncol(df_at)-5)))) 
 df_at
 
 #This will create the new dataframe with question distribution outcomes 
 df_dist <- bind_cols(df_dist, df_at$mean)
 df_dist <- df_dist %>%
-  rename(mean = ncol(df_dist))
+  rename(mean = ncol(df_dist)) ### The mean calculation takes into account Question != 1 point
 df_dist
 ```
 
@@ -218,7 +246,7 @@ df_FS <- left_join(FS_score, FS_poss)
 
 #Calculates a proportional correct column
 df_FS<- df_FS %>%
-  mutate(FS_score2 = FS_score/FS_points_poss)
+  mutate(FS_score_prop = FS_score/FS_points_poss)
 
 #removes summed FS values. There are three FS in the example, so any values above this are sums
 df_FS<- df_FS %>%
@@ -251,8 +279,7 @@ df_FS_Demo
 
 ## 5) Data Visualization with Question Category and Demographic incorporated 
 ```{r message=FALSE, warning=FALSE}
-#Graphing the results of each Demographic
-p <- ggplot(df_FS_Demo, aes(x= Demo, y=FS_score2, color = Demo))+
+p <- ggplot(df_FS_Demo, aes(x= Demo, y=FS_score_prop, color = Demo))+
   theme_classic2()+   
   geom_boxplot()+
   scale_y_continuous(limits = c(0,1.01))+
@@ -266,18 +293,15 @@ p <- ggplot(df_FS_Demo, aes(x= Demo, y=FS_score2, color = Demo))+
   theme(legend.position = "bottom")+
 #Creates a separate panel for each FS with a meaningful name
   facet_wrap(~Theme)
-p
-```
 
-###  Addition of statistical comparison to data visualizations
-```{r message=FALSE, warning=FALSE}
-###Addition of statistical comparisons on graph
-df<- df_FS_Demo
-stat.test <- df %>%
+p
+
+df_stats<- df_FS_Demo
+stat.test <- df_stats %>%
   #Check grouping (Theme or Demo)
-  group_by(Theme)%>%
+  group_by(Theme) %>%
   #Check comparison (Theme or Demo)
-  wilcox_test(FS_score2 ~ Demo) %>%              
+  t_test(FS_score_prop ~ Demo) %>%            ### wilcox alt  
   adjust_pvalue(method = "bonferroni") %>%
   add_significance() 
 stat.test 
@@ -285,6 +309,97 @@ stat.test
 stat.test <- stat.test %>% add_xy_position(x = "Theme", dodge = 0.8)
 
 p + stat_pvalue_manual(stat.test, label = "p.adj.signif", t.length = 0.01,
-                       hide.ns = TRUE, y.position = 0.85)+
+                       hide.ns = TRUE, y.position = 1,
+                       xmin = "group1", xmax = "group2")+
+  scale_y_continuous(expand = expansion(mult = c(0.01, 0.1)))
+```
+
+##6) Groups data by Question Type and computes mean
+```{r message=FALSE, warning=FALSE}
+###transpose df_a to become df_at
+df_at <- transpose(df_a[,-1]) #ignores SID for transpose 
+colnames(df_at) <- df_a$SID
+
+df_at<- slice_head(df_at, n=nrow(df_at)-1) #This is just a count to remove the Total row.
+rownames(df_at) <- colnames(df_a[2:(ncol(df_a)-1)]) #ignores SID as first column
+df_at<- df_at %>%
+  mutate(KEYQ = colnames(df_a[2:(ncol(df_a)-1)]))
+
+df_at <- df_at %>%
+  rowwise() %>%
+  mutate(mean = mean(c_across(1:(ncol(df_at)-4)))) %>% ####-4 removes "Key", "FS", "QType", and "KeyQ" from calculation
+  mutate(sum = sum(c_across(1:(ncol(df_at)-5)))) ##### -5 removes the new "mean" column as well
+
+# Calculate mean score and relative correctness for P7-P9 questions
+pdemo_analysis <- df_at %>%
+  mutate(Exmean = mean(df_at$mean)) %>%
+  mutate(relcorr = mean/Exmean)
+
+#add QType
+pdemo_analysis$QType <- c(as.character(df[nrow(df), 2:Qend]))
+
+pdemo_analysis
+
+# Plot relative correctness by question type for P7-P9
+ggplot(pdemo_analysis, aes(x = QType, y = relcorr, color = QType)) +
+  geom_boxplot() +
+  theme_classic() +
+  xlab("Question Type") +
+  ylab("Proportion correct \n relative to mean score") +
+  theme(legend.position = "none") +
+  scale_y_continuous(limits = c(0, 1.5))+
+  facet_wrap(~FS)
+```
+
+## 7) Student Performance Based on Initial Choice
+
+###Remove initial choice and points earned on series
+```{r message=FALSE, warning=FALSE}
+pdemo <- select(df_qa, Q7, P7, P8, P9) %>% ### Must specify initial Question and all associated Points
+  rowwise() %>%
+  mutate(P_total = sum(P7, P8, P9, na.rm = TRUE)) %>% ### Must specify all associated Points
+  filter(!is.na(Q7)) ### Removes choices where inital choice omitted 
+
+pdemo <- pdemo %>%
+  mutate(P_poss = pdemo[[nrow(pdemo)-2,ncol(pdemo)]]) %>%    ### [key row, total column]
+  mutate(P_prop = P_total/P_poss)
+
+pdemo <- data.frame(pdemo) %>% 
+  slice_head(n=nrow(pdemo)-3) ### Removes "Key", "FS" and "QType" Rows
+pdemo
+```
+
+### Data Visualization Based on Initial Choice with Statistical Comparison
+```{r message=FALSE, warning=FALSE}
+p <- ggplot(pdemo, aes(x= Q7, y=P_prop, color = Q7))+
+  theme_classic2()+   
+  geom_boxplot()+
+  scale_y_continuous(limits = c(0,1.01))+
+#optional line breaks, useful with 5+ categories
+  #geom_vline(xintercept = c(0.5+(1:4)), linetype="dotted", color = "grey", size=0.5)+ 
+#optional mean score
+  #geom_hline(yintercept = mean(df_FS_Demo$FS_score2), linetype="dotted", color = "grey", size=0.3)+ 
+  ggtitle("Demographic Analysis")+
+  xlab("Demo")+
+  ylab("FS Proportion Correct")+
+  theme(legend.position = "bottom")
+
+p
+
+df_stats<- pdemo
+stat.test <- df_stats %>%
+  #Check grouping (Theme or Demo)
+  #group_by(Q7) %>%
+  #Check comparison (Theme or Demo)
+  t_test(P_prop ~ Q7) %>%            ### wilcox alt  
+  adjust_pvalue(method = "bonferroni") %>%
+  add_significance() 
+stat.test 
+
+stat.test <- stat.test %>% add_xy_position(x = "Theme", dodge = 0.8)
+
+p + stat_pvalue_manual(stat.test, label = "p.adj.signif", t.length = 0.01,
+                       hide.ns = FALSE, y.position = 1, step.increase = 0.1,
+                       xmin = "group1", xmax = "group2")+
   scale_y_continuous(expand = expansion(mult = c(0.01, 0.1)))
 ```
